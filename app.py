@@ -1,5 +1,7 @@
+import argparse
 import os
 import re
+import socket
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List
@@ -24,6 +26,18 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY", ""))
 
 AUDIT_LOG: List[Dict[str, Any]] = []
 SUBMISSIONS: Dict[str, Dict[str, Any]] = {}
+
+
+def find_available_port(start: int = 5000, max_attempts: int = 10) -> int:
+    for port in range(start, start + max_attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.bind(("127.0.0.1", port))
+                return port
+            except OSError:
+                continue
+    raise OSError("No available port found")
 
 
 def _utc_now() -> str:
@@ -207,4 +221,9 @@ def health():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=None)
+    parser.add_argument("--host", default="127.0.0.1")
+    args = parser.parse_args()
+    port = args.port if args.port is not None else find_available_port()
+    app.run(debug=True, host=args.host, port=port)

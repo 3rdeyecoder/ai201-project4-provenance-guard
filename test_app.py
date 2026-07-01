@@ -1,6 +1,6 @@
-import json
+import socket
 
-from app import app
+from app import app, find_available_port
 
 
 def test_submit_and_appeal_flow():
@@ -37,3 +37,13 @@ def test_submit_and_appeal_flow():
     assert log_response.status_code == 200
     log_payload = log_response.get_json()
     assert len(log_payload["entries"]) >= 2
+
+
+def test_find_available_port_skips_busy_ports():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        occupied_port = sock.getsockname()[1]
+        sock.listen(1)
+
+        candidate = find_available_port(start=occupied_port, max_attempts=3)
+        assert candidate != occupied_port
